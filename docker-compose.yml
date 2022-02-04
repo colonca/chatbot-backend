@@ -1,0 +1,23 @@
+version: "3.2"
+services:
+  chatbot-server: 
+    build:
+      context: .
+    container_name: chatbot-server
+    ports: 
+      - "5000:5000"
+    volumes:
+      -  ".:/usr/src/app"
+    links: 
+       - mongo
+  mongo: 
+    container_name: mongo-db
+    image: mongo
+    ports: 
+      - "27017:27017"
+    logging:
+      driver: none
+
+
+    
+
