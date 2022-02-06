@@ -10,17 +10,22 @@ connect();
 
 //routes
 import auth from './routes/auth.js';
+import tickets from './routes/tickets.js';
 
 const app = express();
 app.use(express.json());
 app.use(cors({
 	origin: '*'
 }));
+
+//Routes
 app.use('/', auth);
-const server = http.createServer(app);
+app.use('/', tickets);
 
 const PORT = 5000;
 
+//Socket
+const server = http.createServer(app);
 Socket(server);
 
 server.listen(PORT, () => {
