@@ -6,7 +6,7 @@ const ticketsController = {};
 ticketsController.client = async (req, res) => {
 	try {
 		const { id } = req.params;
-		let ticket = await Ticket.findOne({ client: { $eq: id } }).populate('messages');
+		let ticket = await Ticket.findOne({ client: { $eq: id } }).populate([{ path: 'messages' }, { path: 'asesor' }]);
 		return res.status(200).send({
 			status: 200,
 			result: ticket
@@ -33,7 +33,9 @@ ticketsController.asesor = async (req, res) => {
 		if (!ticket) {
 			return res.status(200).send({
 				status: 200,
-				message: []
+				result: {
+					messages: []
+				}
 			});
 		}
 		return res.status(200).send({

@@ -10,7 +10,6 @@ const Socket = (server) => {
 	const io = new Server(server);
 	//TO-DO: validar los errores con try/catch
 	io.on('connection', (socket) => {
-		//TO-DO: cuando se ingresa el ticket a la cola se debe indicar al usuario en que turno se encuentra
 		socket.on('TICKET', async (value) => {
 			let ticket = await Ticket.findOne({ client: { $eq: value.client } });
 			if (!ticket) {
@@ -70,16 +69,14 @@ const Socket = (server) => {
 					});
 				}
 			} catch (err) {
-
 				console.log(err);
 			}
 		});
 
 		setInterval(async () => {
 
-			//TO-DO: establece comunicacón entre el asesor y el cliente basandose en la cola 
+			//DESCRIPCTION: establece comunicacón entre el asesor y el cliente basandose en la cola 
 			const work = await Work.findOne({ startTime: { $eq: null } }).sort({ createdOn: 1 });
-
 			if (work) {
 				const asesorDisponible = await Asesor.findOneAndUpdate({ disponible: { $eq: true } }, {
 					$set: { disponible: false }
@@ -103,6 +100,9 @@ const Socket = (server) => {
 						receptor: ticket.client,
 						text
 					});
+					io.emit('REFRESH', {
+						receptor: asesorDisponible.sesion
+					})
 					io.emit('QUEUE', {
 						receptor: ticket.client,
 						position: 0
@@ -110,8 +110,8 @@ const Socket = (server) => {
 				}
 			}
 
-			//TO-DO: notifica a cada cliente en que posicion de la cola se encuentra.
-			const works = await Work.find({ startTime: { $eq: null } }).sort({ createdOn: -1 }).populate('ticket');
+			//DESCRIPTION: notifica a cada cliente en que posicion de la cola se encuentra.
+			let works = await Work.find({ startTime: { $eq: null } }).sort({ createdOn: -1 }).populate('ticket');
 			works.forEach((work, index) => {
 				const position = works.length - index;
 				io.emit('QUEUE', {
@@ -121,8 +121,40 @@ const Socket = (server) => {
 			});
 
 
-			//TO-DO: finaliza conversación despues de 5 minutos.
-
+			//DESCRIPTION: finaliza conversación despues de 5 minutos.
+			works = await Work.find({ startTime: { $ne: null } }).sort({ createdOn: 1 }).populate('ticket');
+			works.forEach(async (work) => {
+				if (work.ticket) {
+					const ticket = await Ticket.findById(work.ticket._id).populate('asesor');
+					if (ticket.estado === 'IN CONVERSATION') {
+						const startConverstationDate = new Date(work.startTime).valueOf();
+						const currentDate = new Date().valueOf();
+						const timeElapsed = (currentDate - startConverstationDate) / 1000 / 60;
+						if (timeElapsed > process.env.TIME_CHAT) {
+							const asesor = await Asesor.findById(ticket.asesor);
+							const message = new Message({
+								ticket: ticket._id,
+								emisor: asesor.session,
+								receptor: ticket.client,
+								text: '🤖 El chat ha finalizado, un gusto atenderte 👋.',
+							});
+							await message.save();
+							ticket.messages = ticket.messages.concat(message._id);
+							ticket.estado = 'FINALIZADO';
+							await ticket.save();
+							asesor.disponible = true;
+							await asesor.save();
+							io.emit('MESSAGE', {
+								receptor: ticket.client,
+								text: '🤖 El chat ha finalizado, un gusto atenderte 👋.'
+							});
+							io.emit('FINALIZAR CHAT', {
+								receptor: asesor.session,
+							});
+						}
+					}
+				}
+			});
 		}, 1000);
 	});
 }

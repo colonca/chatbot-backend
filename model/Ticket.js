@@ -5,7 +5,7 @@ const Ticket = new Schema({
 	client: { type: String, required: true },
 	area: { type: String, required: true },
 	estado: { type: String, required: true },
-	asesor: { type: Schema.Types.ObjectId, ref: 'asesor' },
+	asesor: { type: Schema.Types.ObjectId, ref: 'asesores' },
 	messages: [{ type: Schema.Types.ObjectId, ref: 'messages' }]
 });
 
